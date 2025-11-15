@@ -6,7 +6,7 @@
 #  ██║  ██║██║╚██████╗███████╗    ██║██║ ╚████║███████║   ██║   ██║  ██║███████╗███████╗███████╗██║  ██║
 #  ╚═╝  ╚═╝╚═╝ ╚═════╝╚══════╝    ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝
 #
-#	Author	-	gh0stzk
+#	Author	-	gh0stzk (Modified for yay)
 #	Repo	-	https://github.com/gh0stzk/dotfiles
 #	Last updated	-	24.03.2025 08:58:16
 #
@@ -67,7 +67,7 @@ welcome() {
 
     printf "%b" "${BLD}${CGR}This script will install my dotfiles and this is what it will do:${CNC}
 
-  ${BLD}${CGR}[${CYE}i${CGR}]${CNC} 2 Repositories will be installed. ${CBL}gh0stzk-dotfiles${CNC} and ${CBL}Chaotic-Aur${CNC}
+  ${BLD}${CGR}[${CYE}i${CGR}]${CNC} 1 Repository will be installed: ${CBL}gh0stzk-dotfiles${CNC}
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Check necessary dependencies and install them
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Download my dotfiles in ${HOME}/dotfiles
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Backup of possible existing configurations (bspwm, polybar, etc...)
@@ -77,6 +77,7 @@ welcome() {
 
 ${BLD}${CGR}[${CRE}!${CGR}]${CNC} ${BLD}${CRE}My dotfiles DO NOT modify any of your system configurations${CNC}
 ${BLD}${CGR}[${CRE}!${CGR}]${CNC} ${BLD}${CRE}This script does NOT have the potential power to break your system${CNC}
+${BLD}${CYE}[${CRE}*${CYE}]${CNC} ${BLD}${CYE}Modified to use YAY instead of PARU and skip chaotic-aur${CNC}
 
 "
 
@@ -113,45 +114,6 @@ add_gh0stzk_repo() {
         printf "\n%b\n" "${BLD}${CYE}The repository already exists and is configured${CNC}"
         sleep 3
     fi
-}
-
-add_chaotic_repo() {
-    clear
-    logo "Add chaotic-aur repository"
-    repo_chaotic="chaotic-aur"
-    key_id="3056513887B78AEB"
-    sleep 2
-
-    printf "%b\n" "${BLD}${CYE}Installing ${CBL}${repo_chaotic}${CYE} repository...${CNC}"
-
-    # GPG key management
-    if ! pacman-key -f "$key_id" >/dev/null 2>&1; then
-        printf "%b\n" "${BLD}${CYE}Adding GPG key...${CNC}"
-        sudo pacman-key --recv-key "$key_id" --keyserver keyserver.ubuntu.com
-
-        printf "%b\n" "${BLD}${CYE}Signing key locally...${CNC}"
-        sudo pacman-key --lsign-key "$key_id"
-    else
-        printf "\n%b\n" "${BLD}${CYE}GPG key already exists in keyring${CNC}"
-    fi
-
-    # Instalación de paquetes requeridos
-    sudo pacman -U --noconfirm --needed 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
-    sudo pacman -U --noconfirm --needed 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
-
-    # Check if repository already exists in pacman.conf
-    if ! grep -q "\[${repo_chaotic}\]" /etc/pacman.conf; then
-        printf "\n%b\n" "${BLD}${CYE}Adding repository to pacman.conf...${CNC}"
-        printf "\n[%s]\nInclude = /etc/pacman.d/chaotic-mirrorlist\n" "$repo_chaotic" \
-            | sudo tee -a /etc/pacman.conf
-
-        printf "%b\n" "\n${BLD}${CBL}${repo_chaotic} ${CGR}Repository configured successfully!${CNC}"
-        sleep 3
-    else
-        printf "%b\n" "\n${BLD}${CYE}Repository already exists in pacman.conf${CNC}"
-        sleep 3
-    fi
-
 }
 
 install_dependencies() {
@@ -250,67 +212,25 @@ install_gh0stzk_dependencies() {
     sleep 3
 }
 
-install_chaotic_dependencies() {
-    clear
-    logo "Installing needed packages from chaotic repository..."
-    sleep 2
-
-    chaotic_dependencies="eww-git"
-
-    # Arrays temporales
-    failed_chaotic_deps=""
-    retry_chaotic_failed=""
-
-    # First pass
-    for chaotic_pkg in $chaotic_dependencies; do
-        sleep 0.50
-        if ! sudo pacman -S --noconfirm --needed "$chaotic_pkg"; then
-            failed_chaotic_deps="$failed_chaotic_deps $chaotic_pkg"
-        fi
-    done
-
-    # If there were failures, try again
-    if [ -n "$failed_chaotic_deps" ]; then
-        printf "\n%b\n" "${BLD}${CRE}These dependencies failed:${CYE}${failed_chaotic_deps}${CNC}"
-        printf "%b\n\n" "${BLD}${CYE}Retrying installation..${CNC}"
-
-        for chaotic_pkg in $failed_chaotic_deps; do
-            sleep 0.50
-            if ! sudo pacman -S --noconfirm --needed "$chaotic_pkg"; then
-                retry_chaotic_failed="$retry_chaotic_failed $chaotic_pkg"
-            fi
-        done
-    fi
-
-    # Final Result
-    if [ -n "$retry_chaotic_failed" ]; then
-        printf "\n%b\n" "${BLD}${CRE}These dependencies could not be installed after two attempts:${CYE}${retry_chaotic_failed}${CNC}"
-        printf "%b\n\n" "${BLD}${CBL}missing_apps.txt ${CYE}file was created on your ${CGR}HOME ${CYE}with the list."
-        printf "\nApps from Chaotic\n=======================\nInstall with pacman command.\nThe following dependencies failed, please install manually:\n%s\n" "$retry_chaotic_failed" >> missing_apps.txt
-    else
-        if [ -z "$failed_chaotic_deps" ]; then
-            printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully.${CNC}"
-        else
-            printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully after retry${CNC}"
-        fi
-    fi
-    sleep 3
-}
-
 install_aur_dependencies() {
     clear
-    logo "Installing AUR dependencies..."
+    logo "Installing AUR dependencies with YAY..."
     sleep 2
 
-    if ! command -v paru >/dev/null 2>&1; then
-        printf "%b\n" "${BLD}${CYE}Installing PARU${CNC}"
-        git clone https://aur.archlinux.org/paru-bin.git
-        cd paru-bin
-        makepkg -si
-        cd
+    # Install yay if not installed
+    if ! command -v yay >/dev/null 2>&1; then
+        printf "%b\n" "${BLD}${CYE}Installing YAY${CNC}"
+        git clone https://aur.archlinux.org/yay.git
+        cd yay
+        makepkg -si --noconfirm
+        cd "$HOME"
+        rm -rf yay
+    else
+        printf "%b\n" "${BLD}${CGR}YAY is already installed${CNC}"
     fi
 
-    aur_dependencies="xwinwrap-0.9-bin i3lock-color simple-mtpfs fzf-tab-git"
+    # AUR dependencies including eww-git
+    aur_dependencies="xwinwrap-0.9-bin i3lock-color simple-mtpfs fzf-tab-git eww-git"
 
     # Arrays temporales
     failed_aur_deps=""
@@ -319,7 +239,7 @@ install_aur_dependencies() {
     # First pass
     for aur_pkg in $aur_dependencies; do
         sleep 0.50
-        if ! paru -S --skipreview --noconfirm "$aur_pkg"; then
+        if ! yay -S --noconfirm "$aur_pkg"; then
             failed_aur_deps="$failed_aur_deps $aur_pkg"
         fi
     done
@@ -331,7 +251,7 @@ install_aur_dependencies() {
 
         for aur_pkg in $failed_aur_deps; do
             sleep 0.50
-            if ! paru -S --skipreview --noconfirm "$aur_pkg"; then
+            if ! yay -S --noconfirm "$aur_pkg"; then
                 retry_aur_failed="$retry_aur_failed $aur_pkg"
             fi
         done
@@ -341,7 +261,7 @@ install_aur_dependencies() {
     if [ -n "$retry_aur_failed" ]; then
         printf "\n%b\n" "${BLD}${CRE}These dependencies could not be installed after two attempts:${CYE}${retry_aur_failed}${CNC}"
         printf "%b\n\n" "${BLD}${CBL}missing_apps.txt ${CYE}file was created on your ${CGR}HOME ${CYE}with the list."
-        printf "\nApps from AUR\n=======================\nInstall with paru command.\nThe following dependencies failed, please install manually:\n%s\n" "$retry_aur_failed" >> missing_apps.txt
+        printf "\nApps from AUR\n=======================\nInstall with yay command.\nThe following dependencies failed, please install manually:\n%s\n" "$retry_aur_failed" >> missing_apps.txt
     else
         if [ -z "$failed_aur_deps" ]; then
             printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully.${CNC}"
@@ -577,12 +497,10 @@ final_prompt() {
 initial_checks
 welcome
 add_gh0stzk_repo
-add_chaotic_repo
 
 install_dependencies
 install_gh0stzk_dependencies
 install_aur_dependencies
-install_chaotic_dependencies
 clone_dotfiles
 
 backup_existing_config
