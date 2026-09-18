@@ -144,8 +144,8 @@ const CONFIG = {
 					link: 'https://github.com/gh0stzk/dotfiles',
 				},
 				{
-					name: 'Arch Linux',
-					link: 'https://archlinux.org/',
+					name: 'Void Linux',
+					link: 'https://voidlinux.org/',
 				},
 				{
 					name: 'ChatGPT',

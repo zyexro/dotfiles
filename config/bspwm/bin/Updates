@@ -4,14 +4,14 @@
 # Repo:   https://github.com/gh0stzk/dotfiles
 # Date:   06.04.2025 09:41:28
 #
-# Updates - Script to check for new updates in ARCH and AUR
+# Updates - Script to check for new updates (Void Linux / xbps)
 #           and sync updates module in polybar/Eww.
 # Features:
 #   ✔ Shows the number of updates available in polybar/eww
-#   ✔ Used in a pacman hook to update the polybar-module/eww-poll. --sync-polybar
+#   ✔ Used by the update timer/cron to refresh the polybar-module/eww-poll. --sync-polybar
 #
 # Dependencies:
-#   → pacman-contrib, paru, polybar
+#   → xbps, polybar
 #
 # Copyright (C) 2021-2026 gh0stzk <z0mbi3.zk@protonmail.com>
 # Licensed under GPL-3.0 license
@@ -34,27 +34,19 @@ sync_bars() {
 
 # Single source of truth for counting
 get_updates() {
-    tmp_official=$(mktemp) && tmp_aur=$(mktemp) || return 1
+    tmp=$(mktemp) || return 1
 
-    checkupdates >"$tmp_official" 2>/dev/null &
-    pid_official=$!
-    paru -Qua >"$tmp_aur" 2>/dev/null &
-    pid_aur=$!
+    # Refresh the repo index non-interactively if we can (timer/cron); fall
+    # back to the last synced index otherwise. xbps-install -un prints each
+    # updatable package plus a trailing "N to update" summary line.
+    sudo -n xbps-install -S >/dev/null 2>&1
+    xbps-install -un 2>/dev/null >"$tmp"
 
-    wait "$pid_official"; official_status=$?
-    wait "$pid_aur"
+    official_updates=$(grep -v ' to update' "$tmp" | grep -v '^[[:space:]]*$')
+    total=$(grep -m1 ' to update' "$tmp" | grep -o '[0-9]\+' | head -1)
+    rm -f "$tmp"
 
-    official_updates=$(cat "$tmp_official")
-    aur_updates=$(cat "$tmp_aur")
-    rm -f "$tmp_official" "$tmp_aur"
-
-    [ "$official_status" -eq 1 ] && return 1
-
-    official=0
-    [ -n "$official_updates" ] && official=$(printf '%s\n' "$official_updates" | wc -l)
-    aur=0
-    [ -n "$aur_updates" ] && aur=$(printf '%s\n' "$aur_updates" | wc -l)
-    total=$((official + aur))
+    total=${total:-0}
 }
 
 # Persist the last successful result (count) and sync bars
@@ -87,13 +79,8 @@ list_updates() {
             printf "\n\033[1m\033[31mNo internet connection.\033[0m\n"
         else
             if [ -n "$official_updates" ]; then
-                printf "\n\033[1m\033[34mOfficial updates:\033[0m\n"
+                printf "\n\033[1m\033[34mAvailable updates:\033[0m\n"
                 printf '%s\n' "$official_updates" | sed 's/->/\x1b[32;1m\x1b[0m/g'
-            fi
-
-            if [ -n "$aur_updates" ]; then
-                printf "\n\033[1m\033[34mAUR updates:\033[0m\n"
-                printf '%s\n' "$aur_updates" | sed 's/->/\x1b[32;1m\x1b[0m/g'
             fi
         fi
     else

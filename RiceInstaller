@@ -67,7 +67,7 @@ welcome() {
 
     printf "%b" "${BLD}${CGR}This script will install my dotfiles and this is what it will do:${CNC}
 
-  ${BLD}${CGR}[${CYE}i${CGR}]${CNC} 2 Repositories will be installed. ${CBL}gh0stzk-dotfiles${CNC} and ${CBL}Chaotic-Aur${CNC}
+  ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Void repositories will be enabled. ${CBL}nonfree${CNC} and ${CBL}multilib${CNC}
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Check necessary dependencies and install them
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Download my dotfiles in ${HOME}/dotfiles
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Backup of possible existing configurations (bspwm, polybar, etc...)
@@ -95,72 +95,27 @@ ${BLD}${CGR}[${CRE}!${CGR}]${CNC} ${BLD}${CRE}This script does NOT have the pote
     done
 }
 
-add_gh0stzk_repo() {
+add_void_repos() {
     clear
-    logo "Add gh0stzk custom repo"
-    repo_name="gh0stzk-dotfiles"
+    logo "Enabling Void repositories"
     sleep 2
 
-    printf "%b\n" "${BLD}${CYE}Installing ${CBL}${repo_name}${CYE} repository...${CNC}"
+    printf "%b\n" "${BLD}${CYE}Enabling ${CBL}nonfree${CYE} and ${CBL}multilib${CYE} repositories...${CNC}"
 
-    # Check if repository already exists in pacman.conf
-    if ! pacman-conf --repo-list | grep -qx "$repo_name"; then
-        printf "\n[%s]\nSigLevel = Optional TrustAll\nServer = http://gh0stzk.github.io/pkgs/x86_64\n" "$repo_name" \
-           | sudo tee -a /etc/pacman.conf
-        printf "\n%b\n" "${BLD}${CYE}${repo_name} ${CGR}repository added successfully!${CNC}"
-        sleep 3
-    else
-        printf "\n%b\n" "${BLD}${CYE}The repository already exists and is configured${CNC}"
-        sleep 3
-    fi
-}
-
-add_chaotic_repo() {
-    clear
-    logo "Add chaotic-aur repository"
-    repo_chaotic="chaotic-aur"
-    key_id="3056513887B78AEB"
-    sleep 2
-
-    printf "%b\n" "${BLD}${CYE}Installing ${CBL}${repo_chaotic}${CYE} repository...${CNC}"
-
-    # GPG key management
-    if ! pacman-key -f "$key_id" >/dev/null 2>&1; then
-        printf "%b\n" "${BLD}${CYE}Adding GPG key...${CNC}"
-        sudo pacman-key --recv-key "$key_id" --keyserver keyserver.ubuntu.com
-
-        printf "%b\n" "${BLD}${CYE}Signing key locally...${CNC}"
-        sudo pacman-key --lsign-key "$key_id"
-    else
-        printf "\n%b\n" "${BLD}${CYE}GPG key already exists in keyring${CNC}"
-    fi
-
-    # Instalación de paquetes requeridos
-    sudo pacman -U --noconfirm --needed 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
-    sudo pacman -U --noconfirm --needed 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
-
-    # Check if repository already exists in pacman.conf
-    if ! pacman-conf --repo-list | grep -qx "$repo_chaotic"; then
-        printf "\n%b\n" "${BLD}${CYE}Adding repository to pacman.conf...${CNC}"
-        printf "\n[%s]\nInclude = /etc/pacman.d/chaotic-mirrorlist\n" "$repo_chaotic" \
-            | sudo tee -a /etc/pacman.conf
-
-        printf "%b\n" "\n${BLD}${CBL}${repo_chaotic} ${CGR}Repository configured successfully!${CNC}"
-        sleep 3
-    else
-        printf "%b\n" "\n${BLD}${CYE}Repository already exists in pacman.conf${CNC}"
-        sleep 3
-    fi
-
+    sudo xbps-install -S --yes void-repo-nonfree void-repo-multilib
+    sudo xbps-install -S
+    sleep 3
 }
 
 install_dependencies() {
     clear
-    logo "Installing needed packages from official repositories..."
+    logo "Installing needed packages from Void repositories..."
     sleep 2
 
-    sudo pacman -Syy
-    dependencies="alacritty base-devel bat bc brightnessctl bspwm clipcat dunst eza feh fzf thunar tumbler gvfs-mtp firefox geany git imagemagick jq jgmenu kitty libwebp maim mpc mpd mpv neovim xcolor ncmpcpp npm pamixer pacman-contrib papirus-icon-theme picom playerctl polybar lxsession python-gobject redshift rofi rustup sxhkd xclip xdg-user-dirs xdo xdotool xsettingsd xorg-xdpyinfo xorg-xkill xorg-xprop xorg-xrandr xorg-xsetroot xorg-xwininfo xorg-xrdb yazi zsh zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting ttf-inconsolata ttf-jetbrains-mono ttf-jetbrains-mono-nerd ttf-terminus-nerd ttf-ubuntu-mono-nerd webp-pixbuf-loader"
+    sudo xbps-install -S
+    # Fonts follow Void naming (`*-ttf`); `nerd-fonts-ttf` covers the mono Nerd
+    # glyphs the rices use. Individually named Arch font packages don't exist here.
+    dependencies="alacritty base-devel bat bc brightnessctl bspwm clipcat dunst eza feh fzf thunar tumbler gvfs-mtp firefox geany git imagemagick jq jgmenu kitty libwebp maim mpc mpd mpv neovim xcolor ncmpcpp npm pamixer papirus-icon-theme picom playerctl polybar lxsession python3-gobject redshift rofi rustup sxhkd xclip xdg-user-dirs xdo xdotool xsettingsd xdpyinfo xkill xprop xrandr xsetroot xwininfo xrdb yazi zsh zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting simple-mtpfs dejavu-fonts-ttf nerd-fonts-ttf webp-pixbuf-loader"
 
     # Arrays temporales
     failed_deps=""
@@ -169,7 +124,7 @@ install_dependencies() {
     # First pass
     for pkg in $dependencies; do
         sleep 0.50
-        if ! sudo pacman -S --noconfirm --needed "$pkg"; then
+        if ! sudo xbps-install -S -y "$pkg"; then
             failed_deps="$failed_deps $pkg"
         fi
     done
@@ -181,7 +136,7 @@ install_dependencies() {
 
         for pkg in $failed_deps; do
             sleep 0.50
-            if ! sudo pacman -S --noconfirm --needed "$pkg"; then
+            if ! sudo xbps-install -S -y "$pkg"; then
                 retry_failed="$retry_failed $pkg"
             fi
         done
@@ -202,153 +157,20 @@ install_dependencies() {
     sleep 3
 }
 
-install_gh0stzk_dependencies() {
+print_manual_builds() {
     clear
-    logo "Installing needed packages from gh0stzk repository..."
+    logo "Packages not in Void repos"
     sleep 2
 
-    gh0stzk_dependencies="st-gh0stzk gh0stzk-gtk-themes gh0stzk-cursor-qogirr gh0stzk-icons-beautyline gh0stzk-icons-candy gh0stzk-icons-catppuccin-mocha gh0stzk-icons-dracula gh0stzk-icons-glassy gh0stzk-icons-gruvbox-plus-dark gh0stzk-icons-hack gh0stzk-icons-luv gh0stzk-icons-sweet-rainbow gh0stzk-icons-tokyo-night gh0stzk-icons-vimix-white gh0stzk-icons-zafiro gh0stzk-icons-zafiro-purple"
-
-    # Arrays temporales
-    failed_gh0st_deps=""
-    retry_gh0st_failed=""
-
-    # First pass
-    for gh0stzk_pkg in $gh0stzk_dependencies; do
-        sleep 0.50
-        if ! sudo pacman -S --noconfirm --needed "$gh0stzk_pkg"; then
-            failed_gh0st_deps="$failed_gh0st_deps $gh0stzk_pkg"
-        fi
-    done
-
-    # If there were failures, try again
-    if [ -n "$failed_gh0st_deps" ]; then
-        printf "\n%b\n" "${BLD}${CRE}These dependencies failed:${CYE}${failed_gh0st_deps}${CNC}"
-        printf "%b\n\n" "${BLD}${CYE}Retrying installation..${CNC}"
-
-        for gh0stzk_pkg in $failed_gh0st_deps; do
-            sleep 0.50
-            if ! sudo pacman -S --noconfirm --needed "$gh0stzk_pkg"; then
-                retry_gh0st_failed="$retry_gh0st_failed $gh0stzk_pkg"
-            fi
-        done
-    fi
-
-    # Final Result
-    if [ -n "$retry_gh0st_failed" ]; then
-        printf "\n%b\n" "${BLD}${CRE}These dependencies could not be installed after two attempts:${CYE}${retry_gh0st_failed}${CNC}"
-        printf "%b\n\n" "${BLD}${CBL}missing_apps.txt ${CYE}file was created on your ${CGR}HOME ${CYE}with the list."
-        printf "\nApps from gh0stzk repo\n=======================\nInstall with pacman command.\nThe following dependencies failed, please install manually:\n%s\n" "$retry_gh0st_failed" >> missing_apps.txt
-    else
-        if [ -z "$failed_gh0st_deps" ]; then
-            printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully.${CNC}"
-        else
-            printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully after retry${CNC}"
-        fi
-    fi
-
-    sleep 3
-}
-
-install_chaotic_dependencies() {
-    clear
-    logo "Installing needed packages from chaotic repository..."
-    sleep 2
-
-    chaotic_dependencies="i3lock-color simple-mtpfs fzf-tab-git paru-git eww-git"
-
-    # Arrays temporales
-    failed_chaotic_deps=""
-    retry_chaotic_failed=""
-
-    # First pass
-    for chaotic_pkg in $chaotic_dependencies; do
-        sleep 0.50
-        if ! sudo pacman -S --noconfirm --needed "$chaotic_pkg"; then
-            failed_chaotic_deps="$failed_chaotic_deps $chaotic_pkg"
-        fi
-    done
-
-    # If there were failures, try again
-    if [ -n "$failed_chaotic_deps" ]; then
-        printf "\n%b\n" "${BLD}${CRE}These dependencies failed:${CYE}${failed_chaotic_deps}${CNC}"
-        printf "%b\n\n" "${BLD}${CYE}Retrying installation..${CNC}"
-
-        for chaotic_pkg in $failed_chaotic_deps; do
-            sleep 0.50
-            if ! sudo pacman -S --noconfirm --needed "$chaotic_pkg"; then
-                retry_chaotic_failed="$retry_chaotic_failed $chaotic_pkg"
-            fi
-        done
-    fi
-
-    # Final Result
-    if [ -n "$retry_chaotic_failed" ]; then
-        printf "\n%b\n" "${BLD}${CRE}These dependencies could not be installed after two attempts:${CYE}${retry_chaotic_failed}${CNC}"
-        printf "%b\n\n" "${BLD}${CBL}missing_apps.txt ${CYE}file was created on your ${CGR}HOME ${CYE}with the list."
-        printf "\nApps from Chaotic\n=======================\nInstall with pacman command.\nThe following dependencies failed, please install manually:\n%s\n" "$retry_chaotic_failed" >> missing_apps.txt
-    else
-        if [ -z "$failed_chaotic_deps" ]; then
-            printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully.${CNC}"
-        else
-            printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully after retry${CNC}"
-        fi
-    fi
-    sleep 3
-}
-
-install_aur_dependencies() {
-    clear
-    logo "Installing AUR dependencies..."
-    sleep 2
-
-    if ! command -v paru >/dev/null 2>&1; then
-        printf "%b\n" "${BLD}${CYE}Installing PARU${CNC}"
-        git clone https://aur.archlinux.org/paru.git
-        cd paru
-        makepkg -si
-        cd
-    fi
-
-    aur_dependencies="xwinwrap-0.9-bin"
-
-    # Arrays temporales
-    failed_aur_deps=""
-    retry_aur_failed=""
-
-    # First pass
-    for aur_pkg in $aur_dependencies; do
-        sleep 0.50
-        if ! paru -S --skipreview --noconfirm "$aur_pkg"; then
-            failed_aur_deps="$failed_aur_deps $aur_pkg"
-        fi
-    done
-
-    # If there were failures, try again
-    if [ -n "$failed_aur_deps" ]; then
-        printf "\n%b\n" "${BLD}${CRE}These dependencies failed:${CYE}${failed_aur_deps}${CNC}"
-        printf "%b\n\n" "${BLD}${CYE}Retrying installation..${CNC}"
-
-        for aur_pkg in $failed_aur_deps; do
-            sleep 0.50
-            if ! paru -S --skipreview --noconfirm "$aur_pkg"; then
-                retry_aur_failed="$retry_aur_failed $aur_pkg"
-            fi
-        done
-    fi
-
-    # Final Result
-    if [ -n "$retry_aur_failed" ]; then
-        printf "\n%b\n" "${BLD}${CRE}These dependencies could not be installed after two attempts:${CYE}${retry_aur_failed}${CNC}"
-        printf "%b\n\n" "${BLD}${CBL}missing_apps.txt ${CYE}file was created on your ${CGR}HOME ${CYE}with the list."
-        printf "\nApps from AUR\n=======================\nInstall with paru command.\nThe following dependencies failed, please install manually:\n%s\n" "$retry_aur_failed" >> missing_apps.txt
-    else
-        if [ -z "$failed_aur_deps" ]; then
-            printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully.${CNC}"
-        else
-            printf "\n%b\n" "${BLD}${CGR}All dependencies were installed successfully after retry${CNC}"
-        fi
-    fi
+    printf "%b\n" "${BLD}${CYE}These rice-specific packages are (mostly) Arch/AUR-only and are not available${CNC} ${BLD}${CYE}from the xbps repositories:${CNC}"
+    printf "%b\n" "  st-gh0stzk, gh0stzk-gtk-themes, gh0stzk-cursor-qogirr, gh0stzk-icons-*,"
+    printf "%b\n" "  i3lock-color, eww-git, fzf-tab-git, xwinwrap."
+    printf "\n%b\n" "${BLD}${CBL}Build and install them from the Void source tree:${CNC}"
+    printf "%b\n" "  git clone https://github.com/void-linux/void-packages.git ~/void-packages"
+    printf "%b\n" "  (cd ~/void-packages && ./xbps-src binary-bootstrap && ./xbps-src pkg <template> && sudo xbps-install -R ~/void-packages/hostdir/binpkgs <pkg>)"
+    printf "%b\n" "  Alternatively build the helper ${CYE}xi${CNC} from void-packages for one-liner builds:"
+    printf "\n%b\n" "  sudo xbps-install xi && xi i3lock-color eww fzf-tab"
+    printf "%b\n\n" "${BLD}${CRE}The dotfiles still work without these; only the specific terminal/theme/features are missing.${CNC}"
     sleep 3
 }
 
@@ -409,7 +231,7 @@ backup_existing_config() {
     sleep 1
 
     # Dirs in ~/.config/
-    cfg_dir="bspwm alacritty cava clipcat ghostty picom rofi eww sxhkd dunst jgmenu kitty polybar geany gtk-3.0 ncmpcpp yazi zsh mpd mpv paru st zathura"
+    cfg_dir="bspwm alacritty cava clipcat ghostty picom rofi eww sxhkd dunst jgmenu kitty polybar geany gtk-3.0 ncmpcpp yazi zsh mpd mpv st zathura"
     for cfg in $cfg_dir; do
         [ -d "$HOME/.config/$cfg" ] && mv "$HOME/.config/$cfg" "$backup_folder"
     done
@@ -462,7 +284,7 @@ install_dotfiles() {
     done
 
     # Copy files to ~/.config
-    dots_config_dir="alacritty bspwm cava clipcat dunst geany ghostty gtk-3.0 jgmenu kitty mpd mpv ncmpcpp paru systemd yazi zsh st zathura"
+    dots_config_dir="alacritty bspwm cava clipcat dunst geany ghostty gtk-3.0 jgmenu kitty mpd mpv ncmpcpp systemd yazi zsh st zathura"
     for dots_cfg in $dots_config_dir; do
         cp -R "$HOME/.local/share/gh0stzk/config/$dots_cfg" "$HOME/.config/"
     done
@@ -511,12 +333,10 @@ install_dotfiles() {
         cp -R "$HOME/.local/share/gh0stzk/home/$dots_home" "$HOME/"
     done
 
-    # Copying polybar-update.hook
-    if [ ! -d /etc/pacman.d/hooks ]; then
-        sudo mkdir -p /etc/pacman.d/hooks
-    fi
-
-    sudo cp "$HOME/.local/share/gh0stzk/misc/polybar-update.hook" /etc/pacman.d/hooks
+    # Arch package hooks don't exist on Void; the update counter is refreshed by
+    # `Updates --sync-polybar` (used by the user services/cron and the bars).
+    printf "%b\n" "${BLD}${CYE}To refresh the polybar/eww update counter on a schedule, add to your crontab:${CNC}"
+    printf "%b\n" "  */5 * * * * $HOME/.config/bspwm/bin/Updates --sync-polybar"
 
     # Update font cache
     fc-cache -r
@@ -536,23 +356,34 @@ configure_services() {
     picom_config="$HOME/.config/bspwm/config/picom/picom.conf"
     sleep 2
 
-    # MPD Service Management
-    if systemctl is-enabled --quiet mpd.service; then
-        printf "%b\n" "${BLD}${CYE}Disabling global MPD service...${CNC}"
-        sudo systemctl disable --now mpd.service
+    # MPD / update-timer only make sense on Void-with-systemd; on the default
+    # runit init they fall back to manual instructions.
+    if command -v systemctl >/dev/null 2>&1; then
+        # MPD Service Management
+        if systemctl is-enabled --quiet mpd.service; then
+            printf "%b\n" "${BLD}${CYE}Disabling global MPD service...${CNC}"
+            sudo systemctl disable --now mpd.service
+        fi
+
+        # User-level MPD Service
+        printf "%b\n" "${BLD}${CYE}Enabling user MPD service...${CNC}"
+        systemctl --user enable --now mpd.service
+
+        # User-level update check every 15 min
+        printf "%b\n" "${BLD}${CYE}Enabling user update-check timer...${CNC}"
+        systemctl --user enable --now ArchUpdates.timer
+    else
+        printf "%b\n" "${BLD}${CYE}runit detected. Start mpd with 'mpd' and schedule the update counter via crontab:${CNC}"
+        printf "%b\n" "  */5 * * * * $HOME/.config/bspwm/bin/Updates --sync-polybar"
     fi
-
-    # User-level MPD Service
-    printf "%b\n" "${BLD}${CYE}Enabling user MPD service...${CNC}"
-    systemctl --user enable --now mpd.service
-
-    # User-level ArchUpdates
-    printf "%b\n" "${BLD}${CYE}Enabling user ArchUpdates service...${CNC}"
-    systemctl --user enable --now ArchUpdates.timer
 
     # Virtual Machine Detection
     is_virtual_machine() {
-        systemd-detect-virt --quiet >/dev/null 2>&1
+        if command -v systemd-detect-virt >/dev/null 2>&1; then
+            systemd-detect-virt --quiet >/dev/null 2>&1
+        else
+            grep -Eqi 'VirtualBox|QEMU|VMware|KVM' /sys/class/dmi/id/product_name 2>/dev/null
+        fi
     }
 
     # Picom Configuration for VMs
@@ -632,13 +463,10 @@ final_prompt() {
 # --- Main run --- #
 initial_checks
 welcome
-add_gh0stzk_repo
-add_chaotic_repo
+add_void_repos
 
 install_dependencies
-install_gh0stzk_dependencies
-install_chaotic_dependencies
-install_aur_dependencies
+print_manual_builds
 
 clone_dotfiles
 
