@@ -112,19 +112,19 @@ install_dependencies() {
     logo "Installing needed packages from Void repositories..."
     sleep 2
 
-    sudo xbps-install -S
-    # Fonts follow Void naming (`*-ttf`); `nerd-fonts-ttf` covers the mono Nerd
-    # glyphs the rices use. Individually named Arch font packages don't exist here.
-    dependencies="alacritty base-devel bat bc brightnessctl bspwm clipcat dunst eza feh fzf thunar tumbler gvfs-mtp firefox geany git imagemagick jq jgmenu kitty libwebp maim mpc mpd mpv neovim xcolor ncmpcpp npm pamixer papirus-icon-theme picom playerctl polybar lxsession python3-gobject redshift rofi rustup sxhkd xclip xdg-user-dirs xdo xdotool xsettingsd xdpyinfo xkill xprop xrandr xsetroot xwininfo xrdb yazi zsh zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting simple-mtpfs dejavu-fonts-ttf nerd-fonts-ttf webp-pixbuf-loader"
+    # Names verified against the Void x86_64 repo index. Note Void capitalizes
+    # Thunar/ImageMagick, ships npm inside nodejs, and provides eww, i3lock-color
+    # and xwinwrap (rf. the AUR-only packages they replace here).
+    dependencies="alacritty base-devel bat bc brightnessctl bspwm dunst eza feh fzf Thunar tumbler gvfs-mtp firefox geany git ImageMagick jq jgmenu kitty libwebp maim mpc mpd mpv neovim xcolor ncmpcpp nodejs pamixer papirus-icon-theme picom playerctl polybar lxsession python3-gobject redshift rofi rustup sxhkd xclip xdg-user-dirs xdo xdotool xsettingsd xdpyinfo xkill xprop xrandr xsetroot xwininfo xrdb yazi zsh zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting simple-mtpfs eww i3lock-color xwinwrap dejavu-fonts-ttf nerd-fonts-ttf webp-pixbuf-loader"
 
     # Arrays temporales
     failed_deps=""
     retry_failed=""
 
-    # First pass
+    # First pass (index already synced by add_void_repos)
     for pkg in $dependencies; do
         sleep 0.50
-        if ! sudo xbps-install -S -y "$pkg"; then
+        if ! sudo xbps-install -y "$pkg"; then
             failed_deps="$failed_deps $pkg"
         fi
     done
@@ -136,7 +136,7 @@ install_dependencies() {
 
         for pkg in $failed_deps; do
             sleep 0.50
-            if ! sudo xbps-install -S -y "$pkg"; then
+            if ! sudo xbps-install -y "$pkg"; then
                 retry_failed="$retry_failed $pkg"
             fi
         done
@@ -162,15 +162,13 @@ print_manual_builds() {
     logo "Packages not in Void repos"
     sleep 2
 
-    printf "%b\n" "${BLD}${CYE}These rice-specific packages are (mostly) Arch/AUR-only and are not available${CNC} ${BLD}${CYE}from the xbps repositories:${CNC}"
-    printf "%b\n" "  st-gh0stzk, gh0stzk-gtk-themes, gh0stzk-cursor-qogirr, gh0stzk-icons-*,"
-    printf "%b\n" "  i3lock-color, eww-git, fzf-tab-git, xwinwrap."
-    printf "\n%b\n" "${BLD}${CBL}Build and install them from the Void source tree:${CNC}"
-    printf "%b\n" "  git clone https://github.com/void-linux/void-packages.git ~/void-packages"
-    printf "%b\n" "  (cd ~/void-packages && ./xbps-src binary-bootstrap && ./xbps-src pkg <template> && sudo xbps-install -R ~/void-packages/hostdir/binpkgs <pkg>)"
-    printf "%b\n" "  Alternatively build the helper ${CYE}xi${CNC} from void-packages for one-liner builds:"
-    printf "\n%b\n" "  sudo xbps-install xi && xi i3lock-color eww fzf-tab"
-    printf "%b\n\n" "${BLD}${CRE}The dotfiles still work without these; only the specific terminal/theme/features are missing.${CNC}"
+    printf "%b\n" "${BLD}${CYE}These rice extras are Arch/AUR-only and are not in the Void xbps repos:${CNC}"
+    printf "%b\n" "  st-gh0stzk, gh0stzk-gtk-themes, gh0stzk-cursor-qogirr, gh0stzk-icons-*, fzf-tab"
+    printf "\n%b\n" "${BLD}${CBL}Void substitutes:${CNC}"
+    printf "%b\n" "  sudo xbps-install -y st   (or keep your own terminal; the config/st dir still applies)"
+    printf "%b\n" "  use any GTK theme/icon set; papirus-icon-theme is already installed"
+    printf "%b\n" "  install the fzf-tab zsh plugin manually, or remove the 'fzf-tab-git' source line from ~/.zshrc"
+    printf "%b\n\n" "${BLD}${CRE}The dotfiles still work without these; only the specific terminal/theme/completion features are missing.${CNC}"
     sleep 3
 }
 
