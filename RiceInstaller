@@ -116,7 +116,7 @@ install_dependencies() {
     # Names verified against the Void x86_64 repo index. Note Void capitalizes
     # Thunar/ImageMagick, ships npm inside nodejs, and provides eww, i3lock-color
     # and xwinwrap (rf. the AUR-only packages they replace here).
-    dependencies="alacritty base-devel bat bc brightnessctl bspwm dunst eza feh fzf Thunar tumbler gvfs-mtp firefox geany git ImageMagick jq jgmenu kitty libwebp maim mpc mpd mpv neovim xcolor ncmpcpp nodejs pamixer papirus-icon-theme picom playerctl polybar lxsession python3-gobject redshift rofi rustup sxhkd xclip xdg-user-dirs xdo xdotool xsettingsd xdpyinfo xkill xprop xrandr xsetroot xwininfo xrdb yazi zsh zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting simple-mtpfs eww i3lock-color xwinwrap dejavu-fonts-ttf nerd-fonts-ttf webp-pixbuf-loader"
+    dependencies="alacritty base-devel bat bc brightnessctl bspwm dunst eza feh fzf Thunar tumbler gvfs-mtp firefox geany git ImageMagick jq jgmenu kitty libwebp maim mpc mpd mpv neovim xcolor ncmpcpp nodejs pamixer papirus-icon-theme picom playerctl polybar lxsession python3-gobject redshift rofi rustup sxhkd xclip xdg-user-dirs xdo xdotool xsettingsd xdpyinfo xkill xprop xrandr xsetroot xwininfo xrdb xorg-server xinit yazi zsh zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting simple-mtpfs eww i3lock-color xwinwrap dejavu-fonts-ttf nerd-fonts-ttf webp-pixbuf-loader"
 
     # Arrays temporales
     failed_deps=""
@@ -368,16 +368,16 @@ setup_login_manager() {
             | sudo tee /usr/share/xsessions/bspwm.desktop >/dev/null
     fi
 
-    # Autologin (only set if lightdm.conf is missing or has no autologin-user)
-    if ! sudo grep -q 'autologin-user' /etc/lightdm/lightdm.conf 2>/dev/null; then
-        printf '[Seat:*]\nautologin-user=%s\nautologin-session=bspwm\n' "$USER" \
-            | sudo tee /etc/lightdm/lightdm.conf >/dev/null
-    fi
+    # Autologin via a drop-in (lightdm.conf.d overrides the main config).
+    sudo mkdir -p /etc/lightdm/lightdm.conf.d
+    printf '[Seat:*]\nautologin-user=%s\nautologin-session=bspwm\n' "$USER" \
+        | sudo tee /etc/lightdm/lightdm.conf.d/10-rice-autologin.conf >/dev/null
 
     # Enable the runit service
     sudo ln -sf /etc/sv/lightdm /var/service/lightdm
 
-    # Manual startx fallback in any case
+    # Manual startx fallback: `startx` at a tty reads .xinitrc -> bspwm.
+    # bspwmrc sets the environment and starts sxhkd/picom/eww/etc.
     if [ ! -f "$HOME/.xinitrc" ]; then
         printf 'exec bspwm\n' > "$HOME/.xinitrc"
     fi
@@ -487,6 +487,14 @@ final_prompt() {
 
     printf "%b\n" "${BLD}${CGR}Installation completed successfully!${CNC}"
     printf "%b\n\n" "${BLD}${CRE}You ${CBL}MUST ${CRE}restart your system to apply changes${CNC}"
+
+    # On runit the graphical session is auto-logged into lightdm; a manual tty
+    # fallback is `startx` (needs the .xinitrc the installer created).
+    if ! command -v systemctl >/dev/null 2>&1; then
+        printf "%b\n" "${BLD}${CYE}After reboot, lightdm should log you straight into bspwm.${CNC}"
+        printf "%b\n" "${BLD}${CYE}If you get a tty instead, just type: ${CGR}startx${CNC}${BLD}${CYE}${CNC}"
+        printf "%b\n\n"
+    fi
 
     while :; do
         printf "%b" "${BLD}${CYE}Reboot now?${CNC} [y/N]: "
