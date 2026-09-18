@@ -167,6 +167,7 @@ print_manual_builds() {
     printf "\n%b\n" "${BLD}${CBL}Void substitutes:${CNC}"
     printf "%b\n" "  sudo xbps-install -y st   (or keep your own terminal; the config/st dir still applies)"
     printf "%b\n" "  use any GTK theme/icon set; papirus-icon-theme is already installed"
+    printf "%b\n" "  bspwmrc calls 'clipcatd' - install clipman/clipit instead, e.g. sudo xbps-install -y clipman"
     printf "%b\n" "  install the fzf-tab zsh plugin manually, or remove the 'fzf-tab-git' source line from ~/.zshrc"
     printf "%b\n\n" "${BLD}${CRE}The dotfiles still work without these; only the specific terminal/theme/completion features are missing.${CNC}"
     sleep 3
@@ -354,8 +355,8 @@ configure_services() {
     picom_config="$HOME/.config/bspwm/config/picom/picom.conf"
     sleep 2
 
-    # MPD / update-timer only make sense on Void-with-systemd; on the default
-    # runit init they fall back to manual instructions.
+    # MPD / update-timer only make sense on Void-with-systemd; on runit they are
+    # handled as session processes.
     if command -v systemctl >/dev/null 2>&1; then
         # MPD Service Management
         if systemctl is-enabled --quiet mpd.service; then
@@ -371,7 +372,15 @@ configure_services() {
         printf "%b\n" "${BLD}${CYE}Enabling user update-check timer...${CNC}"
         systemctl --user enable --now ArchUpdates.timer
     else
-        printf "%b\n" "${BLD}${CYE}runit detected. Start mpd with 'mpd' and schedule the update counter via crontab:${CNC}"
+        printf "%b\n" "${BLD}${CYE}runit detected. Starting mpd as a session process...${CNC}"
+
+        # Autostart mpd with the bspwm session (run() is defined in bspwmrc)
+        if ! grep -qx 'run mpd' "$HOME/.config/bspwm/bspwmrc"; then
+            printf 'run mpd\n' >> "$HOME/.config/bspwm/bspwmrc"
+        fi
+        pidof -q mpd || nohup mpd >/dev/null 2>&1 &
+
+        printf "%b\n" "${BLD}${CYE}To refresh the polybar/eww update counter every 5 min, add to your crontab:${CNC}"
         printf "%b\n" "  */5 * * * * $HOME/.config/bspwm/bin/Updates --sync-polybar"
     fi
 
