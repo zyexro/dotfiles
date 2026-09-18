@@ -73,6 +73,7 @@ welcome() {
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Backup of possible existing configurations (bspwm, polybar, etc...)
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Install my configuration
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Enabling MPD service (Music player daemon)
+  ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Set up automatic login to the bspwm session (lightdm)
   ${BLD}${CGR}[${CYE}i${CGR}]${CNC} Change your shell to zsh shell
 
 ${BLD}${CGR}[${CRE}!${CGR}]${CNC} ${BLD}${CRE}My dotfiles DO NOT modify any of your system configurations${CNC}
@@ -349,6 +350,39 @@ install_dotfiles() {
     sleep 3
 }
 
+setup_login_manager() {
+    # Void with runit has no DM by default -> boots to a bare tty. Install
+    # lightdm with autologin so the system boots straight into bspwm.
+    # Respect an existing display manager if the user already has one enabled.
+    if ls /var/service/lightdm /var/service/sddm /var/service/gdm >/dev/null 2>&1; then
+        printf "%b\n" "${BLD}${CYE}A display manager is already enabled, leaving it untouched.${CNC}"
+        return
+    fi
+
+    printf "%b\n" "${BLD}${CYE}Installing lightdm with autologin to the bspwm session...${CNC}"
+    sudo xbps-install -y lightdm lightdm-gtk3-greeter
+
+    # bspwm session entry for the greeter
+    if [ ! -f /usr/share/xsessions/bspwm.desktop ]; then
+        printf '[Desktop Entry]\nName=BSPWM\nComment=The bspwm window manager\nExec=bspwm\nType=Application\n' \
+            | sudo tee /usr/share/xsessions/bspwm.desktop >/dev/null
+    fi
+
+    # Autologin (only set if lightdm.conf is missing or has no autologin-user)
+    if ! sudo grep -q 'autologin-user' /etc/lightdm/lightdm.conf 2>/dev/null; then
+        printf '[Seat:*]\nautologin-user=%s\nautologin-session=bspwm\n' "$USER" \
+            | sudo tee /etc/lightdm/lightdm.conf >/dev/null
+    fi
+
+    # Enable the runit service
+    sudo ln -sf /etc/sv/lightdm /var/service/lightdm
+
+    # Manual startx fallback in any case
+    if [ ! -f "$HOME/.xinitrc" ]; then
+        printf 'exec bspwm\n' > "$HOME/.xinitrc"
+    fi
+}
+
 configure_services() {
     clear
     logo "Configuring Services"
@@ -379,6 +413,8 @@ configure_services() {
             printf 'run mpd\n' >> "$HOME/.config/bspwm/bspwmrc"
         fi
         pidof -q mpd || nohup mpd >/dev/null 2>&1 &
+
+        setup_login_manager
 
         printf "%b\n" "${BLD}${CYE}To refresh the polybar/eww update counter every 5 min, add to your crontab:${CNC}"
         printf "%b\n" "  */5 * * * * $HOME/.config/bspwm/bin/Updates --sync-polybar"
